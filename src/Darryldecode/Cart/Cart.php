@@ -105,10 +105,11 @@ class Cart {
      * @param int $quantity
      * @param array $attributes
      * @param CartCondition|array $conditions
+     * @param array $options
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $name = null, $price = null, $quantity = null, $attributes = array(), $conditions = array())
+    public function add($id, $name = null, $price = null, $quantity = null, $tax_id = null, $attributes = array(), $conditions = array(), $options = array())
     {
         // if the first argument is an array,
         // we will need to call add again
@@ -125,8 +126,10 @@ class Cart {
                         $item['name'],
                         $item['price'],
                         $item['quantity'],
+                        $item['tax_id'],
                         Helpers::issetAndHasValueOrAssignDefault($item['attributes'], array()),
-                        Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array())
+                        Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array()),
+                        Helpers::issetAndHasValueOrAssignDefault($item['options'], array())
                     );
                 }
             }
@@ -137,8 +140,10 @@ class Cart {
                     $id['name'],
                     $id['price'],
                     $id['quantity'],
+                    $id['tax_id'],
                     Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
-                    Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array())
+                    Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
+                    Helpers::issetAndHasValueOrAssignDefault($id['options'], array())
                 );
             }
 
@@ -151,8 +156,10 @@ class Cart {
             'name' => $name,
             'price' => Helpers::normalizePrice($price),
             'quantity' => $quantity,
+            'tax_id'    => $tax_id,
             'attributes' => new ItemAttributeCollection($attributes),
             'conditions' => $conditions,
+            'options'    => $options
         ));
 
         // get the cart
@@ -232,11 +239,66 @@ class Cart {
             }
         }
 
+
         $cart->put($id, $item);
 
         $this->save($cart);
 
         $this->events->fire($this->getInstanceName().'.updated', array($item, $this));
+    }
+
+    public function updateDynamicItemCondition()
+    {
+        $items = $this->getContent();
+
+        foreach ($items as $item) {
+
+            if ($item->hasConditions()){
+
+                // we need to copy first to a temporary variable to hold the conditions
+                // to avoid hitting this error "Indirect modification of overloaded element of Darryldecode\Cart\ItemCollection has no effect"
+                // this is due to laravel Collection instance that implements Array Access
+                // // see link for more info: http://stackoverflow.com/questions/20053269/indirect-modification-of-overloaded-element-of-splfixedarray-has-no-effect
+                $itemConditionTempHolder = $item['conditions'];
+
+                if( is_array($itemConditionTempHolder) )
+                {
+                    foreach ($itemConditionTempHolder as $key => $condition) {
+
+                        if($condition->getDynamic()){
+
+                            if($data = $condition->basketProcess($this)){
+
+                                $condition->setDefaults($data);
+                            }
+                        }
+                    }
+
+                }
+
+                $this->update($item->id, array(
+                    'conditions' => $itemConditionTempHolder // the newly updated conditions
+                ));
+            }
+        }
+    }
+
+    public function updateDynamicCondition(){
+
+        $conditions = $this->getConditions();
+
+        foreach($conditions as $condition){
+
+            if($condition->getDynamic()){
+                if($data = $condition->basketProcess($this)){
+                    $condition->setDefaults($data);
+
+                }
+                $conditions->put($condition->getName(), $condition);
+
+            }
+        }
+        $this->saveConditions($conditions);
     }
 
     /**
@@ -254,6 +316,10 @@ class Cart {
 
             if( $itemCondition instanceof $conditionInstance )
             {
+
+                if($data = $itemCondition->basketProcess($this)){
+                    $itemCondition->setDefaults($data);
+                }
                 // we need to copy first to a temporary variable to hold the conditions
                 // to avoid hitting this error "Indirect modification of overloaded element of Darryldecode\Cart\ItemCollection has no effect"
                 // this is due to laravel Collection instance that implements Array Access
@@ -269,6 +335,62 @@ class Cart {
                     $itemConditionTempHolder = $itemCondition;
                 }
 
+                $this->update($productId, array(
+                    'conditions' => $itemConditionTempHolder // the newly updated conditions
+                ));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * update condition on an existing item on the cart
+     *
+     * @param int|string $productId
+     * @param CartCondition $itemCondition
+     * @return $this
+     */
+    public function updateItemCondition($productId, $itemCondition)
+    {
+        if( $product = $this->get($productId) )
+        {
+            $conditionInstance = "\\Darryldecode\\Cart\\CartCondition";
+
+            if( $itemCondition instanceof $conditionInstance )
+            {
+
+                if($data = $itemCondition->basketProcess($this)){
+                    $itemCondition->setDefaults($data);
+                }
+                // we need to copy first to a temporary variable to hold the conditions
+                // to avoid hitting this error "Indirect modification of overloaded element of Darryldecode\Cart\ItemCollection has no effect"
+                // this is due to laravel Collection instance that implements Array Access
+                // // see link for more info: http://stackoverflow.com/questions/20053269/indirect-modification-of-overloaded-element-of-splfixedarray-has-no-effect
+                $itemConditionTempHolder = $product['conditions'];
+
+                if( is_array($itemConditionTempHolder) )
+                {
+                    $set = false;
+                    foreach ($itemConditionTempHolder as $key => $condition) {
+                        
+                        if($condition->getName() === $itemCondition->getName()){
+
+                            $set = true;
+                            $itemConditionTempHolder[$key] = $itemCondition;
+                            break;
+                        }
+                    }
+                    
+                    if(!$set){
+                        array_set($itemConditionTempHolder, $itemCondition->getName(), $itemCondition);
+                    }
+
+                }
+                else
+                {
+                    $itemConditionTempHolder = $itemCondition;
+                }
                 $this->update($productId, array(
                     'conditions' => $itemConditionTempHolder // the newly updated conditions
                 ));
@@ -307,6 +429,10 @@ class Cart {
             $this->sessionKeyCartItems,
             array()
         );
+        $this->session->put(
+            $this->sessionKeyCartConditions,
+            array()
+        );
 
         $this->events->fire($this->getInstanceName().'.cleared', array($this));
     }
@@ -332,11 +458,15 @@ class Cart {
 
         if( ! $condition instanceof CartCondition ) throw new InvalidConditionException('Argument 1 must be an instance of \'Darryldecode\Cart\CartCondition\'');
 
+        $this->events->fire($this->getInstanceName().'.adding.condition', array($condition, $this));
+
         $conditions = $this->getConditions();
 
         $conditions->put($condition->getName(), $condition);
 
         $this->saveConditions($conditions);
+
+        $this->events->fire($this->getInstanceName().'.added.condition', array($condition, $this));
 
         return $this;
     }
@@ -362,6 +492,26 @@ class Cart {
         return $this->getConditions()->get($conditionName);
     }
 
+    /**
+     * update condition applied on the cart by its name
+     *
+     * @param $conditionName
+     * @return CartCondition
+     */
+    public function updateCondition($condition)
+    {
+        if( ! $condition instanceof CartCondition ) throw new InvalidConditionException('Argument 1 must be an instance of \'Darryldecode\Cart\CartCondition\'');
+        
+        $conditions = $this->getConditions();
+
+        array_set($conditions, $condition->getName(), $condition);
+
+        $this->saveConditions($conditions);
+
+        $this->events->fire($this->getInstanceName().'.added.condition', array($condition, $this));
+
+        return $this;
+    }
     /**
     * Get all the condition filtered by Type
     * Please Note that this will only return condition added on cart bases, not those conditions added
@@ -390,7 +540,7 @@ class Cart {
     public function removeConditionsByType($type)
     {
         $this->getConditionsByType($type)->each(function($condition)
-        {
+        {   
             $this->removeCartCondition($condition->getName());
         });
     }
@@ -407,11 +557,15 @@ class Cart {
      */
     public function removeCartCondition($conditionName)
     {
+        $this->events->fire($this->getInstanceName().'.removing.condition', array($conditionName, $this));
+
         $conditions = $this->getConditions();
 
         $conditions->pull($conditionName);
 
         $this->saveConditions($conditions);
+        
+        $this->events->fire($this->getInstanceName().'.removed.condition', array($conditionName, $this));
     }
 
     /**
@@ -466,6 +620,73 @@ class Cart {
                 if ($item['conditions'] instanceof $conditionInstance)
                 {
                     if ($tempConditionsHolder->getName() == $conditionName)
+                    {
+                        $item['conditions'] = array();
+                    }
+                }
+            }
+        }
+
+        $this->update($itemId, array(
+            'conditions' => $item['conditions']
+        ));
+
+        return true;
+    }
+
+
+    /**
+     * remove a condition that has been applied on an item that is already on the cart
+     *
+     * @param $itemId
+     * @param $conditionName
+     * @return bool
+     */
+    public function removeItemConditionByType($itemId, $conditionType)
+    {
+        if( ! $item = $this->getContent()->get($itemId) )
+        {
+            return false;
+        }
+
+        if( $this->itemHasConditions($item) )
+        {
+            // NOTE:
+            // we do it this way, we get first conditions and store
+            // it in a temp variable $originalConditions, then we will modify the array there
+            // and after modification we will store it again on $item['conditions']
+            // This is because of ArrayAccess implementation
+            // see link for more info: http://stackoverflow.com/questions/20053269/indirect-modification-of-overloaded-element-of-splfixedarray-has-no-effect
+
+            $tempConditionsHolder = $item['conditions'];
+
+            // if the item's conditions is in array format
+            // we will iterate through all of it and check if the name matches
+            // to the given name the user wants to remove, if so, remove it
+            if( is_array($tempConditionsHolder) )
+            {
+                foreach($tempConditionsHolder as $k => $condition)
+                {
+                    if( $condition->getType() == $conditionType )
+                    {
+                        unset($tempConditionsHolder[$k]);
+                    }
+                }
+
+                $item['conditions'] = $tempConditionsHolder;
+            }
+
+            // if the item condition is not an array, we will check if it is
+            // an instance of a Condition, if so, we will check if the name matches
+            // on the given condition name the user wants to remove, if so,
+            // lets just make $item['conditions'] an empty array as there's just 1 condition on it anyway
+            else
+            {
+                $conditionInstance = "Darryldecode\\Cart\\CartCondition";
+
+                if ($item['conditions'] instanceof $conditionInstance)
+                {
+                    if ($tempConditionsHolder->getType() == $conditionType)
                     {
                         $item['conditions'] = array();
                     }

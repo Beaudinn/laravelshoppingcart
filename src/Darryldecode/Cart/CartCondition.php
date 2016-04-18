@@ -1,7 +1,14 @@
 <?php namespace Darryldecode\Cart;
+use Model;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Darryldecode\Cart\Exceptions\InvalidConditionException;
 use Darryldecode\Cart\Helpers\Helpers;
 use Darryldecode\Cart\Validators\CartConditionValidator;
+use Larastores\Core\Classes\ConditionManager;
+use System\Classes\ModelBehavior;
+use October\Rain\Extension\Extendable;
+
+
 
 /**
  * Created by PhpStorm.
@@ -10,12 +17,43 @@ use Darryldecode\Cart\Validators\CartConditionValidator;
  * Time: 9:02 PM
  */
 
-class CartCondition {
+class CartCondition extends Extendable
+{
+
+    use \October\Rain\Support\Traits\Emitter;
+    use \October\Rain\Database\Traits\DeferredBinding;
+
+    public $classAttribute;
+
+    /**
+     * @var array Behaviors implemented by this controller.
+     */
+    public $implement;
+    /**
+     * @var string
+     */
+    private $alias;
+    private $target;
+    private $name;
+    private $type;
+    private $is_dynamic;
+    //private $attributes = [];
+    private $value;
+    private $tax_id;
+    private $class_name;
+    private $condition_name;
+    private $config_data;
+    private $sort_order;
+
+    public $exists;
 
     /**
      * @var array
      */
-    private $args;
+    public $attributes;
+
+    public $conditionAlias;
+    public $conditionClass;
 
     /**
      * the parsed raw value of the condition
@@ -25,12 +63,83 @@ class CartCondition {
     private $parsedRawValue;
 
     /**
+     * @param stirng $alias
      * @param array $args (name, type, target, value)
      * @throws InvalidConditionException
      */
-    public function __construct(array $args)
+    public function __construct($alias, array $args = [])
     {
-        $this->args = $args;
+        if( is_array($alias) ){
+
+            $this->alias = 'deprecated';
+
+            foreach($alias as $key => $value){
+
+                if($key == 'order'){
+                    $this->sort_order = $value;
+                    continue;
+                }
+
+                $this->{$key} = $value;
+            }
+
+            if( Helpers::isMultiArray($alias) )
+            {
+                Throw new InvalidConditionException('Multi dimensional array is not supported.');
+            }
+            else
+            {
+                $this->validate($alias);
+            }
+            return;
+        }
+
+        /*if(is_string($alias) && empty($args)){
+
+        }*/
+
+        $this->alias = $alias;
+
+        //attributes
+        //$this->attributes = $args;
+
+        foreach($args as $key => $value){
+            $this->attributes[$key] = $value;
+
+            if($key == 'order'){
+                $this->sort_order = $value;
+                continue;
+            }
+            $this->{$key} = $value;
+        }
+        if ($class = $this->getConditionClass($alias)) {
+            $this->applyConditionClass($class);
+            $this->exists = false;
+            $this->initConfigData($this);
+
+            if($defaults = $this->getDefaults()){
+                foreach($defaults as $key => $value){
+                    $this->attributes[$key] = $value;
+                    $this->{$key} = $value;
+                }
+            }
+        }
+
+        $configData = [];
+        $fieldConfig = $this->getFieldConfig();
+
+        $fields = isset($fieldConfig->fields) ? $fieldConfig->fields : [];
+
+        foreach ($fields as $name => $config) {
+            if ((!isset($this->{$name}) || !$this->{$name}) && (!isset($args[$name]) || !$args[$name])  ) {
+                continue;
+            }
+
+            $configData[$name] = $this->{$name} ?: $args[$name];
+            unset($this->{$name});
+        }
+
+        $this->config_data = $configData;
 
         if( Helpers::isMultiArray($args) )
         {
@@ -38,8 +147,72 @@ class CartCondition {
         }
         else
         {
-            $this->validate($this->args);
+            $this->validate($args);
         }
+    }
+
+
+    protected function getConditionClass($alias = false)
+    {
+
+        if(!$alias)
+            $alias = $this->alias;
+
+        if ($this->conditionClass !== null) {
+            return $this->conditionClass;
+        }
+
+        if (!$condition = ConditionManager::instance()->findByAlias($alias)) {
+            return;
+            throw new Exception('Unable to find condition with alias '. $alias);
+        }
+
+        return $this->conditionClass = $condition->class;
+    }
+
+    /**
+     * Extends this class with the gateway class
+     * @param  string $class Class name
+     * @param  string $orderId Order id
+     * @return boolean
+     */
+    public function applyConditionClass($class = null)
+    {
+        if (!$class) {
+            $class = $this->class_name;
+        }
+
+        if (!$class) {
+            return false;
+        }
+
+        if (!$this->isClassExtendedWith($class)) {
+            $this->extendClassWith($class);
+        }
+
+        $this->class_name = $class;
+        $this->condition_name = array_get($this->conditionDetails(), 'name', 'Unknown');
+
+
+        return true;
+    }
+
+    public function setDefaults($data)
+    {
+        foreach($data as $key => $value){
+            $this->attributes[$key] = $value;
+            $this->{$key}  = $value;
+        }
+    }
+
+    /**
+     * the alias of class of the condition
+     *
+     * @return mixed
+     */
+    public function getAlias()
+    {
+        return $this->alias;
     }
 
     /**
@@ -49,7 +222,7 @@ class CartCondition {
      */
     public function getTarget()
     {
-        return $this->args['target'];
+        return $this->target;
     }
 
     /**
@@ -59,7 +232,7 @@ class CartCondition {
      */
     public function getName()
     {
-        return $this->args['name'];
+        return $this->name;
     }
 
     /**
@@ -69,7 +242,32 @@ class CartCondition {
      */
     public function getType()
     {
-        return $this->args['type'];
+        return $this->type;
+    }
+
+    /**
+     * the type of the condition
+     *
+     * @return mixed
+     */
+    public function getDynamic()
+    {
+        return $this->is_dynamic;
+    }
+
+    public function getTaxId()
+    {
+        return $this->tax_id;
+    }
+
+    public function getSortOrder()
+    {
+        return $this->sort_order;
+    }
+
+    public function setSortOrder($order)
+    {
+        $this->sort_order = (int) $order;
     }
 
     /**
@@ -79,8 +277,15 @@ class CartCondition {
      */
     public function getAttributes()
     {
-        return (isset($this->args['attributes'])) ? $this->args['attributes'] : array();
+        return (isset($this->attributes['attributes'])) ? $this->attributes['attributes'] : array();
     }
+
+    public function getConfigData()
+    {
+        return $this->config_data;
+    }
+
+
 
     /**
      * the value of this the condition
@@ -89,7 +294,7 @@ class CartCondition {
      */
     public function getValue()
     {
-        return $this->args['value'];
+        return $this->value;
     }
 
     /**
@@ -238,11 +443,14 @@ class CartCondition {
     protected function validate($args)
     {
         $rules = array(
+            'alias' => 'required',
             'name' => 'required',
             'type' => 'required',
             'target' => 'required',
             'value' => 'required',
         );
+
+        $rules = [];
 
         $validator = CartConditionValidator::make($args, $rules);
 

@@ -17,6 +17,11 @@ class Helpers {
      */
     public static function normalizePrice($price)
     {
+        if(strstr($price, ",")) {
+            $price = str_replace(".", "", $price); // replace dots (thousand seps) with blancs
+            $price = str_replace(",", ".", $price); // replace ',' with '.'
+        }
+
         return (is_string($price)) ? floatval($price) : $price;
     }
 

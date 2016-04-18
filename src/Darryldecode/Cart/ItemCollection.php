@@ -45,6 +45,10 @@ class ItemCollection extends Collection {
         return false;
     }
 
+    public function getConditions(){
+        return $this['conditions'];
+    }
+
     /**
      * get the single price in which conditions are already applied
      *
