@@ -100,6 +100,7 @@ class Cart {
      * add item to the cart, it can be an array or multi dimensional array
      *
      * @param string|array $id
+     * @param string $filename
      * @param string $name
      * @param float $price
      * @param int $quantity
@@ -109,7 +110,7 @@ class Cart {
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $name = null, $price = null, $quantity = null, $tax_id = null, $attributes = array(), $conditions = array(), $options = array())
+    public function add($id, $filename = null, $name = null, $price = null, $quantity = null, $tax_id = null, $attributes = array(), $conditions = array(), $options = array())
     {
         // if the first argument is an array,
         // we will need to call add again
@@ -124,6 +125,7 @@ class Cart {
                     $this->add(
                         $item['id'],
                         $item['name'],
+                        $item['filename'],
                         $item['price'],
                         $item['quantity'],
                         $item['tax_id'],
@@ -137,6 +139,7 @@ class Cart {
             {
                 $this->add(
                     $id['id'],
+                    $id['filename'],
                     $id['name'],
                     $id['price'],
                     $id['quantity'],
@@ -153,6 +156,7 @@ class Cart {
         // validate data
         $item = $this->validate(array(
             'id' => $id,
+            'filename' => $filename,
             'name' => $name,
             'price' => Helpers::normalizePrice($price),
             'quantity' => $quantity,
