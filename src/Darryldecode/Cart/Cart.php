@@ -112,6 +112,7 @@ class Cart {
      */
     public function add($id, $filename = null, $name = null, $price = null, $quantity = null, $tax_id = null, $attributes = array(), $conditions = array(), $options = array())
     {
+
         // if the first argument is an array,
         // we will need to call add again
         if( is_array($id) )
@@ -124,8 +125,8 @@ class Cart {
                 {
                     $this->add(
                         $item['id'],
-                        $item['name'],
                         $item['filename'],
+                        $item['name'],
                         $item['price'],
                         $item['quantity'],
                         $item['tax_id'],
@@ -868,7 +869,6 @@ class Cart {
         $this->events->fire($this->getInstanceName().'.adding', array($item, $this));
 
         $cart = $this->getContent();
-
         $cart->put($id, new ItemCollection($item));
 
         $this->save($cart);
