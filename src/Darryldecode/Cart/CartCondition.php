@@ -37,9 +37,10 @@ class CartCondition extends Extendable
     private $name;
     private $type;
     private $is_dynamic;
+    private $exclude = [];
     //private $attributes = [];
     private $value;
-    private $tax_id;
+    private $tax_class_id;
     private $class_name;
     private $condition_name;
     private $config_data;
@@ -94,10 +95,6 @@ class CartCondition extends Extendable
             return;
         }
 
-        /*if(is_string($alias) && empty($args)){
-
-        }*/
-
         $this->alias = $alias;
 
         //attributes
@@ -116,6 +113,7 @@ class CartCondition extends Extendable
             $this->applyConditionClass($class);
             $this->exists = false;
             $this->initConfigData($this);
+
 
             if($defaults = $this->getDefaults()){
                 foreach($defaults as $key => $value){
@@ -149,6 +147,7 @@ class CartCondition extends Extendable
         {
             $this->validate($args);
         }
+
     }
 
 
@@ -257,7 +256,7 @@ class CartCondition extends Extendable
 
     public function getTaxId()
     {
-        return $this->tax_id;
+        return $this->tax_class_id;
     }
 
     public function getSortOrder()

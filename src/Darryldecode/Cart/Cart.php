@@ -110,7 +110,7 @@ class Cart {
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $filename = null, $name = null, $price = null, $quantity = null, $tax_id = null, $attributes = array(), $conditions = array(), $options = array())
+    public function add($id, $filename = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array())
     {
 
         // if the first argument is an array,
@@ -129,7 +129,7 @@ class Cart {
                         $item['name'],
                         $item['price'],
                         $item['quantity'],
-                        $item['tax_id'],
+                        $item['tax_class_id'],
                         Helpers::issetAndHasValueOrAssignDefault($item['attributes'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($item['options'], array())
@@ -144,7 +144,7 @@ class Cart {
                     $id['name'],
                     $id['price'],
                     $id['quantity'],
-                    $id['tax_id'],
+                    $id['tax_class_id'],
                     Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
                     Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
                     Helpers::issetAndHasValueOrAssignDefault($id['options'], array())
@@ -156,15 +156,15 @@ class Cart {
 
         // validate data
         $item = $this->validate(array(
-            'id' => $id,
-            'filename' => $filename,
-            'name' => $name,
-            'price' => Helpers::normalizePrice($price),
-            'quantity' => $quantity,
-            'tax_id'    => $tax_id,
-            'attributes' => new ItemAttributeCollection($attributes),
-            'conditions' => $conditions,
-            'options'    => $options
+            'id'            => $id,
+            'filename'      => $filename,
+            'name'          => $name,
+            'price'         => Helpers::normalizePrice($price),
+            'quantity'      => $quantity,
+            'tax_class_id'  => $tax_class_id,
+            'attributes'    => new ItemAttributeCollection($attributes),
+            'conditions'    => $conditions,
+            'options'       => $options
         ));
 
         // get the cart
