@@ -123,6 +123,8 @@ class Cart {
             {
                 foreach($id as $item)
                 {
+
+
                     $this->add(
                         $item['id'],
                         $item['filename'],
@@ -138,7 +140,8 @@ class Cart {
             }
             else
             {
-                $this->add(
+
+                  $this->add(
                     $id['id'],
                     $id['filename'],
                     $id['name'],
@@ -153,7 +156,6 @@ class Cart {
 
             return $this;
         }
-
         // validate data
         $item = $this->validate(array(
             'id'            => $id,
@@ -171,6 +173,7 @@ class Cart {
         $cart = $this->getContent();
 
         // if the item is already in the cart we will just update it
+
         if( $cart->has($id) )
         {
 
@@ -195,9 +198,10 @@ class Cart {
      * the $data will be an associative array, you don't need to pass all the data, only the key value
      * of the item you want to update on it
      */
-    public function update($id, $data)
+    public function update($id, $data, $silent = false)
     {
-        $this->events->fire($this->getInstanceName().'.updating', array($data, $this));
+        if(!$silent)
+            $this->events->fire($this->getInstanceName().'.updating', array($data, $this));
 
         $cart = $this->getContent();
 
@@ -249,7 +253,8 @@ class Cart {
 
         $this->save($cart);
 
-        $this->events->fire($this->getInstanceName().'.updated', array($item, $this));
+        if(!$silent)
+            $this->events->fire($this->getInstanceName().'.updated', array($item, $this));
     }
 
     public function updateDynamicItemCondition()
@@ -283,7 +288,7 @@ class Cart {
 
                 $this->update($item->id, array(
                     'conditions' => $itemConditionTempHolder // the newly updated conditions
-                ));
+                ), true);
             }
         }
     }
@@ -867,9 +872,9 @@ class Cart {
     protected function addRow($id, $item)
     {
         $this->events->fire($this->getInstanceName().'.adding', array($item, $this));
-
         $cart = $this->getContent();
-        $cart->put($id, new ItemCollection($item));
+        $item = new ItemCollection($item);
+        $cart->put($id, $item);
 
         $this->save($cart);
 
