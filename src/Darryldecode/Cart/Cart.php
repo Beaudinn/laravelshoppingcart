@@ -100,17 +100,20 @@ class Cart {
      * add item to the cart, it can be an array or multi dimensional array
      *
      * @param string|array $id
-     * @param string $filename
+     * @param string $identifier
+     * @param string $model_name
+     * @param string $model_class
      * @param string $name
      * @param float $price
      * @param int $quantity
+     * @param int $tax_class_id
      * @param array $attributes
      * @param CartCondition|array $conditions
      * @param array $options
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $filename = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array())
+    public function add($id, $identifier = null, $model_name = null, $model_class = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array())
     {
 
         // if the first argument is an array,
@@ -127,7 +130,9 @@ class Cart {
 
                     $this->add(
                         $item['id'],
-                        $item['filename'],
+                        $item['identifier'],
+                        $item['model_name'],
+                        $item['model_class'],
                         $item['name'],
                         $item['price'],
                         $item['quantity'],
@@ -142,15 +147,17 @@ class Cart {
             {
 
                   $this->add(
-                    $id['id'],
-                    $id['filename'],
-                    $id['name'],
-                    $id['price'],
-                    $id['quantity'],
-                    $id['tax_class_id'],
-                    Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
-                    Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
-                    Helpers::issetAndHasValueOrAssignDefault($id['options'], array())
+                        $id['id'],
+                        $id['identifier'],
+                        $id['model_name'],
+                        $id['model_class'],
+                        $id['name'],
+                        $id['price'],
+                        $id['quantity'],
+                        $id['tax_class_id'],
+                        Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
+                        Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
+                        Helpers::issetAndHasValueOrAssignDefault($id['options'], array())
                 );
             }
 
@@ -159,7 +166,9 @@ class Cart {
         // validate data
         $item = $this->validate(array(
             'id'            => $id,
-            'filename'      => $filename,
+            'identifier'    => $identifier,
+            'model_name'    => $model_name,
+            'model_class'   => $model_class,
             'name'          => $name,
             'price'         => Helpers::normalizePrice($price),
             'quantity'      => $quantity,
