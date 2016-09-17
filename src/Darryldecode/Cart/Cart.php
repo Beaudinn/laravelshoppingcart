@@ -113,8 +113,9 @@ class Cart {
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $identifier = null, $model_name = null, $model_class = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array())
+    public function add($id, $identifier = null, $model_name = null, $model_class = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array(), $finalProductId = null, $width = null, $height = null)
     {
+
 
         // if the first argument is an array,
         // we will need to call add again
@@ -139,7 +140,10 @@ class Cart {
                         $item['tax_class_id'],
                         Helpers::issetAndHasValueOrAssignDefault($item['attributes'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array()),
-                        Helpers::issetAndHasValueOrAssignDefault($item['options'], array())
+                        Helpers::issetAndHasValueOrAssignDefault($item['options'], array()),
+                        $item['finalProductId'],
+                        $item['width'],
+                        $item['height']
                     );
                 }
             }
@@ -157,12 +161,17 @@ class Cart {
                         $id['tax_class_id'],
                         Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
-                        Helpers::issetAndHasValueOrAssignDefault($id['options'], array())
+                        Helpers::issetAndHasValueOrAssignDefault($id['options'], array()),
+                        $id['finalProductId'],
+                        $id['width'],
+                        $id['height']
                 );
             }
 
             return $this;
         }
+
+        
         // validate data
         $item = $this->validate(array(
             'id'            => $id,
@@ -175,7 +184,10 @@ class Cart {
             'tax_class_id'  => $tax_class_id,
             'attributes'    => new ItemAttributeCollection($attributes),
             'conditions'    => $conditions,
-            'options'       => $options
+            'options'       => $options,
+            'finalProductId'    => $finalProductId,
+            'width'         => $width,
+            'height'        => $height,
         ));
 
         // get the cart
