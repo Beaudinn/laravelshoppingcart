@@ -61,7 +61,7 @@ class CartCondition extends Extendable
      *
      * @var
      */
-    private $parsedRawValue;
+    public $parsedRawValue;
 
     /**
      * @param stirng $alias
@@ -313,8 +313,9 @@ class CartCondition extends Extendable
      * @param $totalOrSubTotalOrPrice
      * @return mixed
      */
-    public function getCalculatedValue($totalOrSubTotalOrPrice)
+    public function getCalculatedValue($totalOrSubTotalOrPrice = false)
     {
+
         $this->apply($totalOrSubTotalOrPrice, $this->getValue());
 
         return $this->parsedRawValue;
@@ -334,13 +335,16 @@ class CartCondition extends Extendable
         // has a minus or plus sign so we can decide what to do with the
         // percentage, whether to add or subtract it to the total/subtotal/price
         // if we can't find any plus/minus sign, we will assume it as plus sign
+        //var_dump($this->valueIsPercentage($conditionValue), $conditionValue, $this);
         if( $this->valueIsPercentage($conditionValue) )
         {
             if( $this->valueIsToBeSubtracted($conditionValue) )
             {
-                $value = Helpers::normalizePrice( $this->cleanValue($conditionValue) );
 
-                $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
+
+
+                $value = Helpers::normalizePrice( $this->cleanValue($conditionValue) );
+                $this->parsedRawValue = Helpers::normalizePrice( $totalOrSubTotalOrPrice * ($value / 100) );
 
                 $result = floatval($totalOrSubTotalOrPrice - $this->parsedRawValue);
             }
@@ -348,7 +352,7 @@ class CartCondition extends Extendable
             {
                 $value = Helpers::normalizePrice( $this->cleanValue($conditionValue) );
 
-                $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
+                $this->parsedRawValue = Helpers::normalizePrice( $totalOrSubTotalOrPrice * ($value / 100) );
 
                 $result = floatval($totalOrSubTotalOrPrice + $this->parsedRawValue);
             }
@@ -356,7 +360,7 @@ class CartCondition extends Extendable
             {
                 $value = Helpers::normalizePrice($conditionValue);
 
-                $this->parsedRawValue = $totalOrSubTotalOrPrice * ($value / 100);
+                $this->parsedRawValue = Helpers::normalizePrice( $totalOrSubTotalOrPrice * ($value / 100) );
 
                 $result = floatval($totalOrSubTotalOrPrice + $this->parsedRawValue);
             }
@@ -406,7 +410,7 @@ class CartCondition extends Extendable
      * @param $value
      * @return bool
      */
-    protected function valueIsToBeSubtracted($value)
+    public function valueIsToBeSubtracted($value)
     {
         return (preg_match('/\-/', $value) == 1);
     }

@@ -113,7 +113,7 @@ class Cart {
      * @return $this
      * @throws InvalidItemException
      */
-    public function add($id, $identifier = null, $model_name = null, $model_class = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array(), $finalProductId = null, $width = null, $height = null)
+    public function add($id, $identifier = null, $model_name = null, $model_class = null, $name = null, $price = null, $quantity = null, $tax_class_id = null, $attributes = array(), $conditions = array(), $options = array(), $finalProductId = null, $width = null, $height = null, $needFile = false)
     {
 
 
@@ -141,9 +141,10 @@ class Cart {
                         Helpers::issetAndHasValueOrAssignDefault($item['attributes'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($item['conditions'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($item['options'], array()),
-                        $item['finalProductId'],
-                        $item['width'],
-                        $item['height']
+                        Helpers::issetAndHasValueOrAssignDefault($item['finalProductId'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($item['width'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($item['height'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($item['needFile'], false)
                     );
                 }
             }
@@ -162,9 +163,10 @@ class Cart {
                         Helpers::issetAndHasValueOrAssignDefault($id['attributes'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($id['conditions'], array()),
                         Helpers::issetAndHasValueOrAssignDefault($id['options'], array()),
-                        $id['finalProductId'],
-                        $id['width'],
-                        $id['height']
+                        Helpers::issetAndHasValueOrAssignDefault($id['finalProductId'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($id['width'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($id['height'], null),
+                        Helpers::issetAndHasValueOrAssignDefault($id['needFile'], false)
                 );
             }
 
@@ -188,6 +190,7 @@ class Cart {
             'finalProductId'    => $finalProductId,
             'width'         => $width,
             'height'        => $height,
+            'needFile'      => $needFile
         ));
 
         // get the cart
@@ -772,7 +775,7 @@ class Cart {
      *
      * @return float
      */
-    public function getSubTotal()
+    public function getItemsTotal()
     {
         $cart = $this->getContent();
 
@@ -782,6 +785,32 @@ class Cart {
         });
 
         return floatval($sum);
+    }
+
+
+    public function getSubTotal()
+    {
+        $sum = $this->getItemsTotal();
+
+        $newSubTotal = 0.00;
+
+        $process = 0;
+
+        $conditions = $this->getConditions();
+
+        $conditions->each(function($cond) use ($sum, &$newSubTotal, &$process)
+        {
+            if( $cond->getTarget() === 'subtotal' )
+            {
+                if( $process <= 0 ) $newSubTotal = $sum;
+
+                $newSubTotal = $newSubTotal + $cond->getCalculatedValue($sum);
+
+                $process++;
+            }
+        });
+
+        return floatval($newSubTotal);
     }
 
     /**
@@ -804,7 +833,7 @@ class Cart {
 
         $conditions->each(function($cond) use ($subTotal, &$newTotal, &$process)
         {
-            if( $cond->getTarget() === 'subtotal' )
+            if( $cond->getTarget() === 'total' )
             {
                 ( $process > 0 ) ? $toBeCalculated = $newTotal : $toBeCalculated = $subTotal;
 
